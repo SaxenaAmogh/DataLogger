@@ -4,16 +4,29 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.datalogger.BleManager
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
 
     NavHost(
         navController = navController,
-        startDestination = "home" // Start with the TransactionPage,
+        startDestination = "splash" // Start with the TransactionPage,
     ) {
+        composable("splash") {
+            SplashScreen(navController)
+        }
+        composable("signin") {
+            SignInPage(navController)
+        }
+        composable("signup") {
+            SignUpPage(navController)
+        }
         composable("home") {
-            HomePage(navController)
+             HomePage(navController)
+        }
+        composable("connect") {
+            ConnectionScreen(navController)
         }
     }
 }

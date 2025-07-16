@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 
 class PermissionViewModel: ViewModel() {
 
-    val visiblePermissionDialogQueue = mutableStateListOf<String>()
+    private val visiblePermissionDialogQueue = mutableStateListOf<String>()
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun dismissDialog(){
