@@ -5,7 +5,10 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.BroadcastReceiver
@@ -15,12 +18,10 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.util.Log
-import androidx.annotation.RequiresPermission
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,30 +34,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,7 +53,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -74,30 +62,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.core.app.ActivityCompat
-import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.datalogger.ui.theme.AccentColor
 import com.example.datalogger.ui.theme.Background
-import com.example.datalogger.ui.theme.Error
 import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.Secondary
-import com.example.datalogger.ui.theme.Success
 import com.example.datalogger.ui.theme.latoFontFamily
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun ConnectionScreen(navController: NavController) {
 
-    val context = LocalContext.current
+    val contextZ = LocalContext.current
     var devices by remember { mutableStateOf<List<BluetoothDevice>>(emptyList()) }
+    var connectedDevice by remember { mutableStateOf("") }
 
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
-    val focusManager = LocalFocusManager.current
 
     val view = LocalView.current
     val window = (view.context as? Activity)?.window
@@ -108,13 +93,88 @@ fun ConnectionScreen(navController: NavController) {
     }
 
     //Checking and turning on Bluetooth
-    val bluetoothManager: BluetoothManager? = getSystemService(context, BluetoothManager::class.java)
+    val bluetoothManager: BluetoothManager? = getSystemService(contextZ, BluetoothManager::class.java)
     val bluetoothAdapter: BluetoothAdapter? = bluetoothManager?.adapter
+    var bluetoothGatt by remember { mutableStateOf<BluetoothGatt?>(null) }
+
+
+    val gattCallback = object : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            if (ActivityCompat.checkSelfPermission(contextZ, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+                super.onConnectionStateChange(gatt, status, newState)
+                when (newState) {
+                    BluetoothProfile.STATE_CONNECTED -> {
+                        Log.d("BLE", "Connected to GATT server.")
+                        gatt.discoverServices()
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(
+                                contextZ,
+                                "Connected to ${gatt.device.name}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+
+                    BluetoothProfile.STATE_DISCONNECTED -> {
+                        Log.d("BLE", "Disconnected from GATT server.")
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(
+                                contextZ,
+                                "Disconnected from ${gatt.device.name}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            }
+        }
+
+        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            super.onServicesDiscovered(gatt, status)
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d("BLE", "Services discovered: ${gatt.services}")
+            } else {
+                Log.w("BLE", "onServicesDiscovered received: $status")
+            }
+        }
+    }
+
+    val pairingReceiver = remember {
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (ActivityCompat.checkSelfPermission(contextZ, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                if (intent?.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
+                    val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                    val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
+
+                    if (bondState == BluetoothDevice.BOND_BONDED) {
+                        Log.d("BLE", "Paired with ${device?.name}")
+                        // Connect immediately after pairing
+                        bluetoothGatt?.close()
+                        bluetoothGatt = device?.connectGatt(context, false, gattCallback)
+                        connectedDevice = device?.name ?: "Unknown"
+                        devices = emptyList()
+                        navController.navigate("connected/$connectedDevice")
+                    }
+                }
+                    }
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val bondFilter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        contextZ.registerReceiver(pairingReceiver, bondFilter)
+
+        onDispose {
+            contextZ.unregisterReceiver(pairingReceiver)
+        }
+    }
 
     val leScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             Log.d("@@BLE", "onScanResult triggered")
-            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(contextZ, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
                 val device = result.device
                 Log.d("@@BLE", "Found device: ${device.name} - ${device.address}")
                 devices = if (devices.none { it.address == device.address }) {
@@ -137,7 +197,7 @@ fun ConnectionScreen(navController: NavController) {
 
     fun scanLeDevice(enable: Boolean) {
         if (enable) {
-            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(contextZ, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
                 if (!scanning) {
                     handler.postDelayed({
                         scanning = false
@@ -156,7 +216,25 @@ fun ConnectionScreen(navController: NavController) {
             handler.removeCallbacksAndMessages(null) // Optional: stops timeout if canceling early
         }
     }
-    val isBluetoothEnabled by remember { mutableStateOf(bluetoothAdapter?.isEnabled == true) }
+    var isBluetoothEnabled by remember { mutableStateOf(bluetoothAdapter?.isEnabled == true) }
+    val bluetoothStateReceiver = remember {
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    isBluetoothEnabled = state == BluetoothAdapter.STATE_ON
+                }
+            }
+        }
+    }
+    DisposableEffect(Unit) {
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        contextZ.registerReceiver(bluetoothStateReceiver, filter)
+
+        onDispose {
+            contextZ.unregisterReceiver(bluetoothStateReceiver)
+        }
+    }
 
     Scaffold(
         content = {
@@ -213,9 +291,12 @@ fun ConnectionScreen(navController: NavController) {
                                     }
                                     FloatingActionButton(
                                         onClick = {
-                                            devices = emptyList()
-                                            scanLeDevice(true)
-                                            Log.d("BLE", "Scan clicked, scanning for devices")
+                                            if (isBluetoothEnabled) {
+                                                devices = emptyList()
+                                                scanLeDevice(true)
+                                            }else{
+                                                Toast.makeText(contextZ, "Bluetooth is off", Toast.LENGTH_SHORT).show()
+                                            }
                                         },
                                         modifier = Modifier
                                             .border(
@@ -223,7 +304,7 @@ fun ConnectionScreen(navController: NavController) {
                                                 color = AccentColor,
                                                 shape = RoundedCornerShape(16.dp)
                                             ),
-                                        containerColor = Secondary,
+                                        containerColor = if (isBluetoothEnabled) Secondary else Color.Gray,
                                     ) {
                                         Text(
                                             text = "Scan Device",
@@ -322,7 +403,23 @@ fun ConnectionScreen(navController: NavController) {
 
                                                     FloatingActionButton(
                                                         onClick = {
-                                                            Log.d("BLE", "Scan clicked, scanning for devices")
+                                                            Log.d("@@BLE", "Connecting to device: ${device.name} (${device.address})")
+                                                            if (ActivityCompat.checkSelfPermission(contextZ, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                                                                if (device.bondState == BluetoothDevice.BOND_NONE) {
+                                                                    Log.d("@@BLE", "Device not bonded, starting pairing...")
+                                                                    device.createBond() // Start pairing process
+                                                                } else {
+                                                                    Log.d("@@BLE", "Device already bonded, connecting...")
+                                                                    bluetoothGatt?.close()
+                                                                    bluetoothGatt = device.connectGatt(contextZ, false, gattCallback)
+                                                                    connectedDevice = device.name ?: "Unknown"
+                                                                    devices = emptyList()
+                                                                    navController.navigate("connected/$connectedDevice")
+                                                                }
+                                                            } else {
+                                                                Toast.makeText(contextZ, "Bluetooth connect permission not granted.", Toast.LENGTH_SHORT).show()
+                                                            }
+
                                                         },
                                                         modifier = Modifier
                                                             .weight(0.5f)
@@ -350,8 +447,6 @@ fun ConnectionScreen(navController: NavController) {
                             }
                         }
                     }
-
-
                 }
             }
         }
