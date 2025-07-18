@@ -36,9 +36,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -61,6 +67,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,11 +79,11 @@ import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.datalogger.BleManager
 import com.example.datalogger.ui.theme.AccentColor
 import com.example.datalogger.ui.theme.Background
 import com.example.datalogger.ui.theme.Error
 import com.example.datalogger.ui.theme.Primary
+import com.example.datalogger.ui.theme.Secondary
 import com.example.datalogger.ui.theme.Success
 import com.example.datalogger.ui.theme.latoFontFamily
 
@@ -148,27 +156,7 @@ fun ConnectionScreen(navController: NavController) {
             handler.removeCallbacksAndMessages(null) // Optional: stops timeout if canceling early
         }
     }
-
-    var isBluetoothEnabled by remember { mutableStateOf(bluetoothAdapter?.isEnabled == true) }
-    val bluetoothStateReceiver = rememberUpdatedState(newValue = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
-                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                isBluetoothEnabled = state == BluetoothAdapter.STATE_ON
-                if (state == BluetoothAdapter.STATE_ON) {
-                    scanLeDevice(true)
-                }
-            }
-        }
-    })
-
-    DisposableEffect(Unit) {
-        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-        context.registerReceiver(bluetoothStateReceiver.value, filter)
-        onDispose {
-            context.unregisterReceiver(bluetoothStateReceiver.value)
-        }
-    }
+    val isBluetoothEnabled by remember { mutableStateOf(bluetoothAdapter?.isEnabled == true) }
 
     Scaffold(
         content = {
@@ -185,215 +173,189 @@ fun ConnectionScreen(navController: NavController) {
                             horizontal = 0.04 * screenWidth
                         )
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ){
-                        Text(
-                            text = "Available Devices",
-                            fontFamily = latoFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp,
-                            color = Color.Black,
-                        )
-                        Spacer(modifier = Modifier.height(0.02 * screenHeight))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(25))
-                                    .background(Primary)
-                                    .padding(horizontal = 16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Bluetooth Status:  ${if (isBluetoothEnabled) "On" else "Off"}",
-                                    fontFamily = latoFontFamily,
-                                    fontSize = 20.sp,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(vertical = 24.dp, horizontal = 14.dp)
-                                )
-                            }
-                            if (!isBluetoothEnabled) {
-                                Switch(
-                                    checked = isBluetoothEnabled,
-                                    onCheckedChange = {
-                                        if (it) {
-                                            val enableBtIntent =
-                                                Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                                            if (context is Activity) {
-                                                startActivityForResult(
-                                                    context,
-                                                    enableBtIntent,
-                                                    1,
-                                                    null
-                                                )
-                                            }
-                                        }
-                                    },
-                                    colors = SwitchColors(
-                                        checkedThumbColor = Success,
-                                        uncheckedThumbColor = Error,
-                                        checkedTrackColor = Success.copy(alpha = 0.6f),
-                                        uncheckedTrackColor = Error.copy(alpha = 0.5f),
-                                        checkedBorderColor = Color.Transparent,
-                                        checkedIconColor = Color.Transparent,
-                                        uncheckedBorderColor = Color.Transparent,
-                                        uncheckedIconColor = Color.Transparent,
-                                        disabledCheckedThumbColor = Color.Transparent,
-                                        disabledCheckedTrackColor = Color.Transparent,
-                                        disabledCheckedBorderColor = Color.Transparent,
-                                        disabledCheckedIconColor = Color.Transparent,
-                                        disabledUncheckedThumbColor = Color.Transparent,
-                                        disabledUncheckedTrackColor = Color.Transparent,
-                                        disabledUncheckedBorderColor = Color.Transparent,
-                                        disabledUncheckedIconColor = Color.Transparent,
-                                    )
-                                )
-                            }else{
-                                Switch(
-                                    checked = isBluetoothEnabled,
-                                    onCheckedChange = {
-                                        focusManager.clearFocus()
-                                    },
-                                    colors = SwitchColors(
-                                        checkedThumbColor = Success,
-                                        uncheckedThumbColor = Error,
-                                        checkedTrackColor = Success.copy(alpha = 0.6f),
-                                        uncheckedTrackColor = Error.copy(alpha = 0.5f),
-                                        checkedBorderColor = Color.Transparent,
-                                        checkedIconColor = Color.Transparent,
-                                        uncheckedBorderColor = Color.Transparent,
-                                        uncheckedIconColor = Color.Transparent,
-                                        disabledCheckedThumbColor = Color.Transparent,
-                                        disabledCheckedTrackColor = Color.Transparent,
-                                        disabledCheckedBorderColor = Color.Transparent,
-                                        disabledCheckedIconColor = Color.Transparent,
-                                        disabledUncheckedThumbColor = Color.Transparent,
-                                        disabledUncheckedTrackColor = Color.Transparent,
-                                        disabledUncheckedBorderColor = Color.Transparent,
-                                        disabledUncheckedIconColor = Color.Transparent,
-                                    )
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(0.05 * screenHeight))
-                    }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .border(
-                                width = 1.5.dp,
-                                color = Primary,
-                                shape = RoundedCornerShape(16.dp)
-                            )
-                            .height(0.5 * screenHeight),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ){
-                        Spacer(modifier = Modifier.height(0.015 * screenHeight))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 0.07 * screenWidth),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ){
-                            Text(
-                                text = "Available Devices",
-                                fontFamily = latoFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 22.sp,
-                                color = Primary,
-                            )
-                            Icon(
-                                Icons.Rounded.Refresh,
-                                contentDescription = "Refresh",
-                                tint = if (scanning) Color.Gray else AccentColor,
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clickable(enabled = !scanning) {
-                                        scanLeDevice(true)
-                                        Log.d("BLE", "Refresh clicked, scanning for devices")
-                                    }
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(0.02 * screenHeight))
-                        if (devices.isEmpty()) {
-                            Text(
-                                text = "No devices found",
-                                fontFamily = latoFontFamily,
-                                fontSize = 18.sp,
-                                color = Color.Gray
-                            )
-                        } else {
+                    LazyColumn {
+                        item {
                             Column(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                devices.forEach { device ->
+                                    .fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ){
+                                Text(
+                                    text = "Available Devices",
+                                    fontFamily = latoFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 22.sp,
+                                    color = Color.Black,
+                                )
+                                Spacer(modifier = Modifier.height(0.02 * screenHeight))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color.White)
-                                            .padding(16.dp)
-                                            .border(
-                                                width = 1.dp,
-                                                color = Primary,
-                                                shape = RoundedCornerShape(12.dp)
-                                            ),
-                                        contentAlignment = Alignment.CenterStart
+                                            .clip(RoundedCornerShape(25))
+                                            .background(Primary)
+                                            .padding(horizontal = 3.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = device.name ?: "Unnamed Device",
+                                            text = "Bluetooth Status:  ${if (isBluetoothEnabled) "On" else "Off"}",
                                             fontFamily = latoFontFamily,
-                                            fontSize = 18.sp,
-                                            color = Color.Black
+                                            fontSize = 20.sp,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(vertical = 24.dp, horizontal = 8.dp)
                                         )
+                                    }
+                                    FloatingActionButton(
+                                        onClick = {
+                                            devices = emptyList()
+                                            scanLeDevice(true)
+                                            Log.d("BLE", "Scan clicked, scanning for devices")
+                                        },
+                                        modifier = Modifier
+                                            .border(
+                                                width = 2.dp,
+                                                color = AccentColor,
+                                                shape = RoundedCornerShape(16.dp)
+                                            ),
+                                        containerColor = Secondary,
+                                    ) {
+                                        Text(
+                                            text = "Scan Device",
+                                            fontFamily = latoFontFamily,
+                                            color = Color.Black,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(0.03 * screenHeight))
+                            }
+                        }
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .padding(vertical = 12.dp)
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
+                                    .border(
+                                        width = 1.5.dp,
+                                        color = Primary,
+                                        shape = RoundedCornerShape(16.dp)
+                                    ),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ){
+                                Spacer(modifier = Modifier.height(0.015 * screenHeight))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 0.06 * screenWidth),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ){
+                                    Text(
+                                        text = "Available Devices",
+                                        fontFamily = latoFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 22.sp,
+                                        color = Primary,
+                                    )
+                                    Text(
+                                        text = if (scanning) "Scanning..." else "Not Scanning",
+                                        fontFamily = latoFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                        color = if (scanning) Color.Gray else AccentColor,
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(0.01 * screenHeight))
+                                if (devices.isEmpty()) {
+                                    Text(
+                                        text = "No Devices found :(",
+                                        fontFamily = latoFontFamily,
+                                        fontSize = 18.sp,
+                                        color = Color.Gray
+                                    )
+                                } else {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val espDevices = devices.filter { it.name?.contains("ESP") == true }
+                                        if (espDevices.isEmpty()) {
+                                            Text(
+                                                text = "No ESP devices found :(",
+                                                fontFamily = latoFontFamily,
+                                                fontSize = 18.sp,
+                                                color = Color.Gray,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                            )
+                                        } else {
+                                            espDevices.forEach { device ->
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 0.03 * screenWidth),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = device.name ?: "Unknown Device",
+                                                        fontFamily = latoFontFamily,
+                                                        fontSize = 18.sp,
+                                                        color = Color.Black,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        maxLines = 1,
+                                                        modifier = Modifier.weight(0.45f)
+                                                    )
+
+                                                    FloatingActionButton(
+                                                        onClick = {
+                                                            Log.d("BLE", "Scan clicked, scanning for devices")
+                                                        },
+                                                        modifier = Modifier
+                                                            .weight(0.5f)
+                                                            .border(
+                                                                width = 2.dp,
+                                                                color = AccentColor,
+                                                                shape = RoundedCornerShape(16.dp)
+                                                            ),
+                                                        containerColor = Secondary,
+                                                    ) {
+                                                        Text(
+                                                            text = "Connect",
+                                                            fontFamily = latoFontFamily,
+                                                            color = Color.Black,
+                                                            fontSize = 18.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+
+
                 }
             }
         }
     )
-
-
-
-//    Column(modifier = Modifier.padding(16.dp)) {
-//        Text("Found Devices:", fontWeight = FontWeight.Bold)
-//f
-//        devices.forEach { device ->
-//            Button(
-//                onClick = {
-//                    if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-//                        bleManager.connectToDevice(device, context) {
-//                            Toast.makeText(context, "Connected to ${device.name}", Toast.LENGTH_SHORT).show()
-//                        }
-//                    } else {
-//                        Toast.makeText(context, "Bluetooth connect permission not granted", Toast.LENGTH_SHORT).show()
-//                    }
-//                },
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(vertical = 4.dp)
-//            ) {
-//                Text(text = device.name ?: "Unnamed")
-//            }
-//        }
-//    }
 }
 
 @Preview(showBackground = true)

@@ -4,17 +4,19 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
+import android.content.IntentFilter
+import android.database.ContentObserver
+import android.location.LocationManager
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
-import android.util.Log
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,11 +35,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -46,11 +44,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,23 +68,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.core.content.ContextCompat.getSystemService
-import androidx.core.content.ContextCompat.startActivity
 import androidx.core.view.WindowCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.datalogger.R
 import com.example.datalogger.ui.theme.AccentColor
-import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.Background
+import com.example.datalogger.ui.theme.Error
 import com.example.datalogger.ui.theme.Primary
+import com.example.datalogger.ui.theme.Success
 import com.example.datalogger.ui.theme.latoFontFamily
-import com.example.datalogger.viewmodel.PermissionViewModel
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import com.google.accompanist.permissions.rememberPermissionState
-import com.google.accompanist.permissions.shouldShowRationale
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -94,6 +87,8 @@ fun HomePage(navController: NavController) {
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+    val showRationalDialog = remember { mutableStateOf(false) }
 
     val view = LocalView.current
     val window = (view.context as? Activity)?.window
@@ -101,6 +96,161 @@ fun HomePage(navController: NavController) {
 
     if (windowInsetsController != null) {
         windowInsetsController.isAppearanceLightStatusBars = true
+    }
+
+// Bluetooth and Location managers
+    val bluetoothManager = getSystemService(context, BluetoothManager::class.java)
+    val bluetoothAdapter = bluetoothManager?.adapter
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+// State holders
+    var isLocationEnabled by remember {
+        mutableStateOf(
+            locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                    locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        )
+    }
+    var isBluetoothEnabled by remember {
+        mutableStateOf(bluetoothAdapter?.isEnabled == true)
+    }
+
+// ✅ Use remember for both receivers
+
+    val bluetoothStateReceiver = remember {
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    isBluetoothEnabled = state == BluetoothAdapter.STATE_ON
+                }
+            }
+        }
+    }
+
+    val locationStateReceiver = remember {
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == LocationManager.PROVIDERS_CHANGED_ACTION) {
+                    context?.let {
+                        val locManager = it.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                        val gpsEnabled = locManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                        val netEnabled = locManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+                        isLocationEnabled = gpsEnabled || netEnabled
+                    }
+                }
+            }
+        }
+    }
+
+// ContentObserver for location changes
+    DisposableEffect(Unit) {
+        val locationObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                val gpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                val netEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+                isLocationEnabled = gpsEnabled || netEnabled
+            }
+        }
+
+        context.contentResolver.registerContentObserver(
+            Settings.Secure.getUriFor(Settings.Secure.LOCATION_MODE),
+            true,
+            locationObserver
+        )
+
+        onDispose {
+            context.contentResolver.unregisterContentObserver(locationObserver)
+        }
+    }
+
+// Register Bluetooth receiver
+    DisposableEffect(Unit) {
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        context.registerReceiver(bluetoothStateReceiver, filter)
+
+        onDispose {
+            context.unregisterReceiver(bluetoothStateReceiver)
+        }
+    }
+
+// Register Location receiver
+    DisposableEffect(Unit) {
+        val locationFilter = IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION)
+        context.registerReceiver(locationStateReceiver, locationFilter)
+
+        onDispose {
+            context.unregisterReceiver(locationStateReceiver)
+        }
+    }
+
+// Hide dialog if both enabled
+    LaunchedEffect(isBluetoothEnabled, isLocationEnabled) {
+        if (isBluetoothEnabled && isLocationEnabled) {
+            showRationalDialog.value = false
+        }
+    }
+
+
+    if (showRationalDialog.value) {
+        AlertDialog(
+            containerColor = Color(0xFF1D3B5E),
+            onDismissRequest = {
+                showRationalDialog.value = false
+            },
+            title = {
+                Text(
+                    text = "Bluetooth and Location",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = AccentColor
+                )
+            },
+            text = {
+                Text(
+                    text = "Turn on ${if(!isBluetoothEnabled && !isLocationEnabled) "Bluetooth and Location" else if (!isBluetoothEnabled)"Bluetooth" else if(!isLocationEnabled) "Location" else ""} to continue.",
+                    fontSize = 16.sp,
+                    color = Color.White,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if(!isBluetoothEnabled){
+                            val enableBtIntent =
+                                Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                            if (context is Activity) {
+                                startActivityForResult(
+                                    context,
+                                    enableBtIntent,
+                                    1,
+                                    null
+                                )
+                            }
+                        }else if(!isLocationEnabled){
+                            val enableLocIntent =
+                                Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                            if (context is Activity) {
+                                startActivityForResult(
+                                    context,
+                                    enableLocIntent,
+                                    1,
+                                    null
+                                )
+                            }
+                        }
+                    }) {
+                    Text("Allow", style = TextStyle(color = Success), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {}
+                ){
+                    Text("Cancel", style = TextStyle(color = Error), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+        )
     }
 
     Scaffold(
@@ -154,6 +304,41 @@ fun HomePage(navController: NavController) {
                             modifier = Modifier
                                 .padding(horizontal = 0.12 * screenWidth)
                                 .fillMaxWidth(),
+                            containerColor = Primary,
+                            elevation = FloatingActionButtonDefaults.elevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp,
+                                focusedElevation = 0.dp,
+                                hoveredElevation = 0.dp
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .clickable {
+                                        if(!isBluetoothEnabled || !isLocationEnabled){
+                                            showRationalDialog.value = true
+                                        }else{
+                                            Toast.makeText(context, "Bluetooth and Location are enabled", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                verticalAlignment = Alignment.CenterVertically
+                            ){
+                                Text(
+                                    text = "Turn on Bluetooth and Location",
+                                    fontFamily = latoFontFamily,
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.W500,
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.padding(0.01 * screenHeight))
+                        FloatingActionButton(
+                            onClick = {
+                            },
+                            modifier = Modifier
+                                .padding(horizontal = 0.12 * screenWidth)
+                                .fillMaxWidth(),
                             containerColor = AccentColor,
                             elevation = FloatingActionButtonDefaults.elevation(
                                 defaultElevation = 0.dp,
@@ -163,6 +348,14 @@ fun HomePage(navController: NavController) {
                             )
                         ) {
                             Row(
+                                modifier = Modifier
+                                    .clickable {
+                                        if(isBluetoothEnabled && isLocationEnabled) {
+                                            navController.navigate("connect")
+                                        }else{
+                                            Toast.makeText(context, "Enable Bluetooth and Location.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
                                 verticalAlignment = Alignment.CenterVertically
                             ){
                                 Text(
@@ -215,7 +408,6 @@ fun HomePage(navController: NavController) {
                         Spacer(modifier = Modifier.size(12.dp))
                         IconButton(
                             onClick = {
-                                navController.navigate("connect")
                             },
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
