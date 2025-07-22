@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.times
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.datalogger.ui.theme.AccentColor
@@ -71,10 +72,11 @@ import com.example.datalogger.ui.theme.Background
 import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.Secondary
 import com.example.datalogger.ui.theme.latoFontFamily
+import com.example.datalogger.viewmodel.BleViewModel
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun ConnectionScreen(navController: NavController) {
+fun ConnectionScreen(navController: NavController, bleViewModel: BleViewModel) {
 
     val contextZ = LocalContext.current
     var devices by remember { mutableStateOf<List<BluetoothDevice>>(emptyList()) }
@@ -414,7 +416,9 @@ fun ConnectionScreen(navController: NavController) {
                                                                     bluetoothGatt = device.connectGatt(contextZ, false, gattCallback)
                                                                     connectedDevice = device.name ?: "Unknown"
                                                                     devices = emptyList()
-                                                                    navController.navigate("connected/$connectedDevice")
+                                                                    bleViewModel.selectedDevice = device
+                                                                    Log.d("@@@", bleViewModel.selectedDevice!!.name.toString())
+                                                                    navController.navigate("connected")
                                                                 }
                                                             } else {
                                                                 Toast.makeText(contextZ, "Bluetooth connect permission not granted.", Toast.LENGTH_SHORT).show()
@@ -456,5 +460,5 @@ fun ConnectionScreen(navController: NavController) {
 @Preview(showBackground = true)
 @Composable
 fun ConnectionScreenPreview() {
-    ConnectionScreen(rememberNavController())
+    ConnectionScreen(rememberNavController(), viewModel())
 }

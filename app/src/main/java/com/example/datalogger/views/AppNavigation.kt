@@ -1,18 +1,22 @@
 package com.example.datalogger.views
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.datalogger.viewmodel.BleViewModel
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
 
+    val bleViewModel: BleViewModel = viewModel()
+
     NavHost(
         navController = navController,
-        startDestination = "splash"
+        startDestination = "home"
     ) {
         composable("splash") {
             SplashScreen(navController)
@@ -27,14 +31,10 @@ fun AppNavigation(navController: NavHostController) {
              HomePage(navController)
         }
         composable("connect") {
-            ConnectionScreen(navController)
+            ConnectionScreen(navController, bleViewModel)
         }
-        composable(
-            route = "connected/{deviceName}",
-            arguments = listOf(navArgument("deviceName") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val deviceName = backStackEntry.arguments?.getString("deviceName") ?: "ESP32"
-            ConnectedPage(deviceName, navController)
+        composable("connected"){
+            ConnectedPage(navController, bleViewModel)
         }
     }
 }

@@ -1,7 +1,16 @@
 package com.example.datalogger.views
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothProfile
+import android.content.pm.PackageManager
+import android.util.Log
+import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +36,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -45,7 +57,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
+import androidx.core.app.ActivityCompat
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.datalogger.R
@@ -55,16 +69,18 @@ import com.example.datalogger.ui.theme.Error
 import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.Success
 import com.example.datalogger.ui.theme.latoFontFamily
+import com.example.datalogger.viewmodel.BleViewModel
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun ConnectedPage(deviceName: String, navController: NavController){
-
+fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
+
+
     val workingS1 = remember { mutableStateOf(false) }
     val workingS2 = remember { mutableStateOf(false) }
     val workingS3 = remember { mutableStateOf(true) }
@@ -76,6 +92,83 @@ fun ConnectedPage(deviceName: String, navController: NavController){
 
     if (windowInsetsController != null) {
         windowInsetsController.isAppearanceLightStatusBars = true
+    }
+
+    fun readFirstReadableTextCharacteristic(gatt: BluetoothGatt) {
+        for (service in gatt.services) {
+            Log.d("BLE", "Found service: ${service.uuid}")
+            for (characteristic in service.characteristics) {
+                Log.d("BLE", "  Found characteristic: ${characteristic.uuid}")
+
+                val isReadable =
+                    characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0
+
+                if (isReadable) {
+                    Log.d("BLE", "Reading characteristic: ${characteristic.uuid}")
+                    val success = gatt.readCharacteristic(characteristic)
+                    if (!success) {
+                        Log.e("BLE", "readCharacteristic returned false")
+                    }
+                    return
+                }
+            }
+        }
+        Log.w("BLE", "No readable characteristic found")
+    }
+
+    fun createGattCallback(viewModel: BleViewModel): BluetoothGattCallback {
+        return object : BluetoothGattCallback() {
+
+            override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) return
+
+                if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    Log.d("BLE", "Connected! Discovering services...")
+                    gatt.discoverServices()
+                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    Log.d("BLE", "Disconnected from GATT server.")
+                }
+            }
+
+            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    Log.e("BLE", "Service discovery failed with status: $status")
+                    return
+                }
+
+                readFirstReadableTextCharacteristic(gatt)
+            }
+
+            override fun onCharacteristicRead(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
+            ) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    val value = characteristic.value
+                    val text = String(value, Charsets.UTF_8)
+                    Log.d("BLE", "✅ Received data: $text")
+                    viewModel.updateReceivedText(text) // 👈 Update ViewModel state
+                } else {
+                    Log.e("BLE", "Failed to read characteristic with status: $status")
+                }
+            }
+        }
+    }
+
+
+
+    val device: BluetoothDevice? = bleViewModel.selectedDevice  // <- from scan result
+
+    val receivedText by remember { derivedStateOf { bleViewModel.receivedText } }
+
+    LaunchedEffect(Unit) {
+        val device = bleViewModel.selectedDevice
+        if (device != null) {
+            device.connectGatt(context, false, createGattCallback(bleViewModel))
+        } else {
+            Log.e("BLE", "❌ No device selected.")
+        }
     }
 
     Scaffold(
@@ -120,16 +213,26 @@ fun ConnectedPage(deviceName: String, navController: NavController){
                                             horizontal = 8.dp
                                         )
                                     )
+                                    Log.d("@@@Cd", bleViewModel.selectedDevice.toString())
+                                    bleViewModel.selectedDevice?.let { it1 ->
+                                        Text(
+                                            text = it1.name,
+                                            fontFamily = latoFontFamily,
+                                            fontSize = 20.sp,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.W500,
+                                            modifier = Modifier.padding(
+                                                vertical = 10.dp,
+                                                horizontal = 8.dp
+                                            )
+                                        )
+                                    }
                                     Text(
-                                        text = deviceName,
+                                        text = receivedText,
                                         fontFamily = latoFontFamily,
-                                        fontSize = 20.sp,
+                                        fontSize = 16.sp,
                                         color = Color.White,
                                         fontWeight = FontWeight.W500,
-                                        modifier = Modifier.padding(
-                                            vertical = 10.dp,
-                                            horizontal = 8.dp
-                                        )
                                     )
                                 }
                             }
@@ -283,5 +386,5 @@ fun ConnectedPage(deviceName: String, navController: NavController){
 @Preview(showBackground = true)
 @Composable
 fun ConnectedPagePreview(){
-    ConnectedPage("ESP32_Dev1", rememberNavController())
+    ConnectedPage(rememberNavController(), viewModel())
 }
