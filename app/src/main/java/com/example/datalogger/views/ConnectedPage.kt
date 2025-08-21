@@ -11,7 +11,6 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.content.pm.PackageManager
 import android.util.Log
-import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +31,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,12 +46,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,7 +62,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.datalogger.R
 import com.example.datalogger.ui.theme.AccentColor
 import com.example.datalogger.ui.theme.Background
-import com.example.datalogger.ui.theme.Error
 import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.Success
 import com.example.datalogger.ui.theme.latoFontFamily
@@ -81,9 +76,10 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
-    val focusManager = LocalFocusManager.current
+//    val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
+    // Initialize working states for sensors. Must be changed according to hardware
     val workingS1 = remember { mutableStateOf(false) }
     val workingS2 = remember { mutableStateOf(false) }
     val workingS3 = remember { mutableStateOf(true) }
@@ -92,14 +88,15 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
     val view = LocalView.current
     val window = (view.context as? Activity)?.window
     val windowInsetsController = window?.let { WindowCompat.getInsetsController(it, view) }
-
     if (windowInsetsController != null) {
         windowInsetsController.isAppearanceLightStatusBars = true
     }
 
+    // Get the selected device from the ViewModel
     val device: BluetoothDevice? = bleViewModel.selectedDevice  // <- from scan result
     val receivedText by remember { derivedStateOf { bleViewModel.receivedText } }
 
+    // Initialize sensor values as mutable states of sensor data
     val sensorValue1 = remember { mutableStateOf(0.0f) }
     val sensorValue2 = remember { mutableStateOf(0.0f) }
     val sensorValue3 = remember { mutableStateOf(0.0f) }
@@ -108,13 +105,13 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
 // A state to hold the GATT connection
     val gattRef = remember { mutableStateOf<BluetoothGatt?>(null) }
 
-
 // Use LaunchedEffect to safely manage the BLE connection lifecycle
     LaunchedEffect(key1 = device) {
         // If there's no device, do nothing
         if (device == null) return@LaunchedEffect
 
-        // Define UUIDs here or access them from a constants file
+        // Define UUIDs here or access them from a constants file.
+        // ** Must be exactly same as of hardware for BLE to work.
         val SENSOR_SERVICE_UUID = UUID.fromString("0000abcd-0000-1000-8000-00805f9b34fb")
         val SENSOR_CHARACTERISTIC_UUID = UUID.fromString("00001234-0000-1000-8000-00805f9b34fb")
         val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
@@ -164,6 +161,7 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
                         sensorValue3.value = buffer.getFloat()
                         sensorValue4.value = buffer.getFloat()
 
+                        // Log the decoded values for debugging
                         Log.i("GattCallback", "Decoded Floats: ${sensorValue1.value}, ${sensorValue2.value}, ...")
                     }
                 }
@@ -174,10 +172,6 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
         Log.d("BleConnection", "Connecting to device...")
         gattRef.value = device.connectGatt(context, false, gattCallback)
     }
-//
-//    gattRef.value?.disconnect()
-//    gattRef.value?.close()
-//    gattRef.value = null
 
     Scaffold(
         content = {
@@ -221,7 +215,8 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
                                             horizontal = 8.dp
                                         )
                                     )
-                                    Log.d("@@@Cd", bleViewModel.selectedDevice.toString())
+                                    // Log the selected device for debugging
+                                    //Log.d("@@@Cd", bleViewModel.selectedDevice.toString())
                                     bleViewModel.selectedDevice?.let { it1 ->
                                         Text(
                                             text = it1.name,
@@ -235,17 +230,12 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
                                             )
                                         )
                                     }
-                                    Text(
-                                        text = receivedText,
-                                        fontFamily = latoFontFamily,
-                                        fontSize = 16.sp,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.W500,
-                                    )
                                 }
                             }
                             Spacer(modifier = Modifier.height(0.02 * screenHeight))
                         }
+                        //This section is fow showing what sensors are working.
+                        // Currently hardcoded, needs to be updated by getting some value from hardware.
                         item {
                             Column(
                                 modifier = Modifier
@@ -384,6 +374,8 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
                                 }
                             }
                         }
+                        //This section is for showing the sensor values.
+                        // The sensor names are hardcoded, but the values are dynamic and will change. Change the names according to your hardware.
                         item {
                             Column(
                                 modifier = Modifier

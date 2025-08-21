@@ -62,9 +62,8 @@ import com.example.datalogger.ui.theme.latoFontFamily
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import com.google.accompanist.permissions.shouldShowRationale
 
-//@SuppressLint("PermissionLaunchedDuringComposition")
+//Splash screen composable that is shown when the app is launched
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun SplashScreen(navController: NavController){
@@ -72,15 +71,17 @@ fun SplashScreen(navController: NavController){
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
+    val context = LocalContext.current
+
     val view = LocalView.current
     val window = (view.context as? Activity)?.window
     val windowInsetsController = window?.let { WindowCompat.getInsetsController(it, view) }
-
     if (windowInsetsController != null) {
         windowInsetsController.isAppearanceLightStatusBars = true
     }
-    val context = LocalContext.current
 
+    // Request permissions based on Android version
+    // For Android 12 and above, we need BLUETOOTH_CONNECT and BLU
     val permissionsToRequest = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             listOf(
@@ -265,6 +266,5 @@ fun SplashScreen(navController: NavController){
 @Preview(showBackground = true)
 @Composable
 fun SplashScreenPreview() {
-    // Preview of the SplashScreen
     SplashScreen(rememberNavController())
 }

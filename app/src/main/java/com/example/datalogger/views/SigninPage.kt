@@ -57,9 +57,10 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.Background
-import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.latoFontFamily
 
+// Composable function for the Sign In page
+// Not yet implemented with firebase authentication
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun SignInPage(navController: NavController) {
@@ -68,7 +69,6 @@ fun SignInPage(navController: NavController) {
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
 
-//    val authViewModel: AuthViewModel = viewModel()
     val view = LocalView.current
     val window = (view.context as? Activity)?.window
     val windowInsetsController = window?.let { WindowCompat.getInsetsController(it, view) }
@@ -225,28 +225,6 @@ fun SignInPage(navController: NavController) {
                     Spacer(modifier = Modifier.height(0.03 * screenHeight))
                     FloatingActionButton(
                         onClick = {
-//                            if (email.isNotEmpty() && password.isNotEmpty()) {
-//                                authViewModel.loginUser(
-//                                    email = email,
-//                                    password = password,
-//                                    onSuccess = {
-//                                        navController.navigate("home") {
-//                                            popUpTo(0) { inclusive = true }
-//                                        }
-//                                        Toast.makeText(
-//                                            view.context,
-//                                            "Logged in successfully",
-//                                            Toast.LENGTH_SHORT
-//                                        ).show()
-//                                    }
-//                                )
-//                            } else {
-//                                Toast.makeText(
-//                                    view.context,
-//                                    "Please fill in all fields",
-//                                    Toast.LENGTH_SHORT
-//                                ).show()
-//                            }
                             navController.navigate("home")
                         },
                         modifier = Modifier
@@ -302,5 +280,5 @@ fun SignInPage(navController: NavController) {
 @Preview(showBackground = true)
 @Composable
 fun SignInPagePreview() {
-    SignInPage(rememberNavController()) // Replace with a valid NavController instance
+    SignInPage(rememberNavController())
 }

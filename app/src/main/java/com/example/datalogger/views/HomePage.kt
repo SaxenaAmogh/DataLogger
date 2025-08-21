@@ -17,7 +17,6 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,14 +31,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -53,7 +50,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -86,7 +82,6 @@ fun HomePage(navController: NavController) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
-    val focusManager = LocalFocusManager.current
     val context = LocalContext.current
     val showRationalDialog = remember { mutableStateOf(false) }
 
@@ -113,8 +108,6 @@ fun HomePage(navController: NavController) {
     var isBluetoothEnabled by remember {
         mutableStateOf(bluetoothAdapter?.isEnabled == true)
     }
-
-// ✅ Use remember for both receivers
 
     val bluetoothStateReceiver = remember {
         object : BroadcastReceiver() {
@@ -377,66 +370,67 @@ fun HomePage(navController: NavController) {
                         Spacer(modifier = Modifier.padding(0.04 * screenHeight))
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal = 0.04 * screenWidth
-                            )
-                            .background(
-                                shape = RoundedCornerShape(40),
-                                color = Primary
-                            ),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = {},
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .size(55.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.home_d),
-                                contentDescription = "home",
-                                Modifier.size(32.dp),
-                                tint = Color.Black
-                            )
-                        }
-                        Spacer(modifier = Modifier.size(12.dp))
-                        IconButton(
-                            onClick = {
-                            },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .size(55.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.bluetooth_d),
-                                contentDescription = "cart_na",
-                                Modifier.size(32.dp),
-                                tint = Color.Black
-                            )
-                        }
-                        Spacer(modifier = Modifier.size(12.dp))
-                        IconButton(
-                            onClick = {
-                                navController.navigate("security")
-                            },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .size(55.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.user_d),
-                                contentDescription = "explore",
-                                Modifier.size(32.dp),
-                                tint = Color.Black
-                            )
-                        }
-                    }
+                    //Bottom NavBar Code
+//                    Row(
+//                        modifier = Modifier
+//                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
+//                            .align(Alignment.BottomCenter)
+//                            .fillMaxWidth()
+//                            .padding(
+//                                horizontal = 0.04 * screenWidth
+//                            )
+//                            .background(
+//                                shape = RoundedCornerShape(40),
+//                                color = Primary
+//                            ),
+//                        horizontalArrangement = Arrangement.SpaceEvenly,
+//                        verticalAlignment = Alignment.CenterVertically
+//                    ) {
+//                        IconButton(
+//                            onClick = {},
+//                            modifier = Modifier
+//                                .clip(RoundedCornerShape(50))
+//                                .size(55.dp)
+//                        ) {
+//                            Icon(
+//                                painter = painterResource(R.drawable.home_d),
+//                                contentDescription = "home",
+//                                Modifier.size(32.dp),
+//                                tint = Color.Black
+//                            )
+//                        }
+//                        Spacer(modifier = Modifier.size(12.dp))
+//                        IconButton(
+//                            onClick = {
+//                            },
+//                            modifier = Modifier
+//                                .clip(RoundedCornerShape(50))
+//                                .size(55.dp)
+//                        ) {
+//                            Icon(
+//                                painter = painterResource(R.drawable.bluetooth_d),
+//                                contentDescription = "cart_na",
+//                                Modifier.size(32.dp),
+//                                tint = Color.Black
+//                            )
+//                        }
+//                        Spacer(modifier = Modifier.size(12.dp))
+//                        IconButton(
+//                            onClick = {
+//                                navController.navigate("security")
+//                            },
+//                            modifier = Modifier
+//                                .clip(RoundedCornerShape(50))
+//                                .size(55.dp)
+//                        ) {
+//                            Icon(
+//                                painter = painterResource(R.drawable.user_d),
+//                                contentDescription = "explore",
+//                                Modifier.size(32.dp),
+//                                tint = Color.Black
+//                            )
+//                        }
+//                    }
 
                 }
             }

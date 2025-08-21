@@ -23,6 +23,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ){
+                    //Calls the AppNavigation composable to set up navigation and flow of app
                     val navController = rememberNavController()
                     AppNavigation(navController = navController)
                 }

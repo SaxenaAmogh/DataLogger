@@ -3,12 +3,11 @@ package com.example.datalogger.views
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
 import com.example.datalogger.viewmodel.BleViewModel
 
+//Composable to handle navigation between different screens in the app
 @Composable
 fun AppNavigation(navController: NavHostController) {
 

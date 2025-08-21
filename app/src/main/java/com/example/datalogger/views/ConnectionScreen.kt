@@ -99,7 +99,7 @@ fun ConnectionScreen(navController: NavController, bleViewModel: BleViewModel) {
     val bluetoothAdapter: BluetoothAdapter? = bluetoothManager?.adapter
     var bluetoothGatt by remember { mutableStateOf<BluetoothGatt?>(null) }
 
-
+    // Checking necessary permissions and connecting to gatt
     val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             if (ActivityCompat.checkSelfPermission(contextZ, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
@@ -141,6 +141,7 @@ fun ConnectionScreen(navController: NavController, bleViewModel: BleViewModel) {
         }
     }
 
+    //Connecting with esp and handling pairing
     val pairingReceiver = remember {
         object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -195,8 +196,9 @@ fun ConnectionScreen(navController: NavController, bleViewModel: BleViewModel) {
     val bluetoothLeScanner = bluetoothAdapter?.bluetoothLeScanner
     var scanning by remember { mutableStateOf(false) }
     val handler = Handler(Looper.getMainLooper())
-    val SCAN_PERIOD = 10000L
+    val SCAN_PERIOD = 10000L //Scans for 10 seconds
 
+    // Function to start or stop scanning for BLE devices
     fun scanLeDevice(enable: Boolean) {
         if (enable) {
             if (ActivityCompat.checkSelfPermission(contextZ, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
@@ -361,7 +363,7 @@ fun ConnectionScreen(navController: NavController, bleViewModel: BleViewModel) {
                                 Spacer(modifier = Modifier.height(0.01 * screenHeight))
                                 if (devices.isEmpty()) {
                                     Text(
-                                        text = "No Devices found :(",
+                                        text = "No Devices found",
                                         fontFamily = latoFontFamily,
                                         fontSize = 18.sp,
                                         color = Color.Gray

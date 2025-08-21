@@ -2,7 +2,6 @@ package com.example.datalogger.views
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,7 +35,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,14 +53,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.core.view.WindowCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.Background
 import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.latoFontFamily
 
+// Composable function for the Sign Up page
+// Not yet implemented with firebase authentication
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun SignUpPage(navController: NavController){
@@ -70,16 +68,18 @@ fun SignUpPage(navController: NavController){
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
-    val context = LocalView.current.context
     val view = LocalView.current
     val window = (view.context as? Activity)?.window
     val windowInsetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+    if (windowInsetsController != null) {
+        windowInsetsController.isAppearanceLightStatusBars = true
+    }
 
-//    val authViewModel: AuthViewModel = viewModel()
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+//    val authViewModel: AuthViewModel = viewModel()
 //    val signupStatus by authViewModel.signupStatus
 
 //    LaunchedEffect(signupStatus) {
@@ -89,10 +89,6 @@ fun SignUpPage(navController: NavController){
 //            authViewModel.clearStatus()
 //        }
 //    }
-
-    if (windowInsetsController != null) {
-        windowInsetsController.isAppearanceLightStatusBars = true
-    }
 
     Scaffold(
         content = {
@@ -275,29 +271,6 @@ fun SignUpPage(navController: NavController){
                     Spacer(modifier = Modifier.height(0.03 * screenHeight))
                     FloatingActionButton(
                         onClick = {
-//                            if (name.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty()) {
-//                                authViewModel.signUpUser(
-//                                    name = name,
-//                                    email = email,
-//                                    password = password,
-//                                    onSuccess = {
-//                                        navController.navigate("home") {
-//                                            popUpTo("create") { inclusive = true }
-//                                        }
-//                                        Toast.makeText(
-//                                            context,
-//                                            "Account created successfully!",
-//                                            Toast.LENGTH_SHORT
-//                                        ).show()
-//                                    }
-//                                )
-//                            } else {
-//                                Toast.makeText(
-//                                    context,
-//                                    "Please fill in all fields",
-//                                    Toast.LENGTH_SHORT
-//                                ).show()
-//                            }
                             navController.navigate("home")
                         },
                         modifier = Modifier
