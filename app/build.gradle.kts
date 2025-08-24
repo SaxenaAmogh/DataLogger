@@ -45,6 +45,7 @@ dependencies {
     //firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.database)
 
     implementation(libs.accompanist.permissions)
     implementation(libs.androidx.core.ktx)

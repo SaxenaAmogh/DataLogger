@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -66,6 +68,8 @@ import com.example.datalogger.ui.theme.Primary
 import com.example.datalogger.ui.theme.Success
 import com.example.datalogger.ui.theme.latoFontFamily
 import com.example.datalogger.viewmodel.BleViewModel
+import com.example.datalogger.viewmodel.SensorViewModel
+import kotlinx.coroutines.delay
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
@@ -78,6 +82,7 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
     val screenHeight = configuration.screenHeightDp.dp
 //    val focusManager = LocalFocusManager.current
     val context = LocalContext.current
+    val sensorViewModel: SensorViewModel = viewModel()
 
     // Initialize working states for sensors. Must be changed according to hardware
     val workingS1 = remember { mutableStateOf(false) }
@@ -160,7 +165,6 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
                         sensorValue2.value = buffer.getFloat()
                         sensorValue3.value = buffer.getFloat()
                         sensorValue4.value = buffer.getFloat()
-
                         // Log the decoded values for debugging
                         Log.i("GattCallback", "Decoded Floats: ${sensorValue1.value}, ${sensorValue2.value}, ...")
                     }
@@ -536,6 +540,32 @@ fun ConnectedPage(navController: NavController, bleViewModel: BleViewModel){
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(0.02 * screenHeight))
+                                FloatingActionButton(
+                                    onClick = {
+                                        sensorViewModel.startSendingData(sensorValue1.value)
+                                    },
+                                    modifier = Modifier
+                                        .padding(horizontal = 0.12 * screenWidth)
+                                        .fillMaxWidth(),
+                                    containerColor = AccentColor,
+                                    elevation = FloatingActionButtonDefaults.elevation(
+                                        defaultElevation = 0.dp,
+                                        pressedElevation = 0.dp,
+                                        focusedElevation = 0.dp,
+                                        hoveredElevation = 0.dp
+                                    )
+                                ) {
+                                    Text(
+                                        text = "Send Sensor1 Data to Cloud",
+                                        fontFamily = latoFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center,
+                                        fontSize = 16.sp,
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .padding(horizontal = 8.dp)
+                                    )
+                                }
                             }
                         }
                     }
