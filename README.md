@@ -14,7 +14,7 @@ An Android application built to interface with an ESP32-based hardware system. T
 
 ## Features
 
-- 🔗 ESP32 Connectivity – Connects to an ESP32 microcontroller over Wi-Fi/Bluetooth to retrieve sensor data.
+- 🔗 ESP32 Connectivity – Connects to an ESP32 microcontroller over Bluetooth Low Energy(BLE) to retrieve sensor data.
 
 - 📟 Real-time Monitoring – Displays live sensor values inside the app.
 
